@@ -1,4 +1,4 @@
-import { createServerApp } from "../server";
+import { createServerApp } from "./server";
 
 let cachedApp: any;
 
