@@ -33,6 +33,7 @@ export async function createServerApp() {
     }
     
     baseUrl = baseUrl || "http://localhost:3000";
+    // We'll use /auth/google/callback as the primary, but the server will listen to both
     const uri = `${baseUrl.replace(/\/$/, "")}/auth/google/callback`;
     console.log(`🔗 OAuth Redirect URI: ${uri}`);
     return uri;
@@ -69,7 +70,12 @@ export async function createServerApp() {
   });
 
   // 2. Google Auth Callback
-  app.get(["/auth/google/callback", "/auth/google/callback/"], async (req, res) => {
+  app.get([
+    "/auth/google/callback", 
+    "/auth/google/callback/",
+    "/api/auth/callback/google",
+    "/api/auth/callback/google/"
+  ], async (req, res) => {
     const { code } = req.query;
     if (!code) return res.status(400).send("No code provided");
 
