@@ -16,16 +16,35 @@ async function startServer() {
   const GOOGLE_CLIENT_ID = process.env.GOOGLE_CLIENT_ID;
   const GOOGLE_CLIENT_SECRET = process.env.GOOGLE_CLIENT_SECRET;
   
-  const getRedirectUri = () => {
-    const baseUrl = process.env.APP_URL || process.env.NEXTAUTH_URL || "http://localhost:3000";
-    return `${baseUrl.replace(/\/$/, "")}/auth/google/callback`;
+  if (!GOOGLE_CLIENT_ID || !GOOGLE_CLIENT_SECRET) {
+    console.warn("⚠️ WARNING: GOOGLE_CLIENT_ID or GOOGLE_CLIENT_SECRET is missing from environment variables.");
+  }
+
+  const getRedirectUri = (req?: express.Request) => {
+    // Priority: APP_URL (AI Studio) > NEXTAUTH_URL (Vercel) > Request Host (Fallback)
+    let baseUrl = process.env.APP_URL || process.env.NEXTAUTH_URL;
+    
+    if (!baseUrl && req) {
+      const protocol = req.headers["x-forwarded-proto"] || req.protocol;
+      baseUrl = `${protocol}://${req.get("host")}`;
+    }
+    
+    baseUrl = baseUrl || "http://localhost:3000";
+    const uri = `${baseUrl.replace(/\/$/, "")}/auth/google/callback`;
+    console.log(`🔗 OAuth Redirect URI: ${uri}`);
+    return uri;
   };
 
   // 1. Get Google Auth URL
   app.get("/api/auth/google/url", (req, res) => {
+    if (!GOOGLE_CLIENT_ID) {
+      return res.status(500).json({ error: "GOOGLE_CLIENT_ID is not configured" });
+    }
+
+    const redirectUri = getRedirectUri(req);
     const params = new URLSearchParams({
-      client_id: GOOGLE_CLIENT_ID!,
-      redirect_uri: getRedirectUri(),
+      client_id: GOOGLE_CLIENT_ID,
+      redirect_uri: redirectUri,
       response_type: "code",
       scope: "openid email profile",
       access_type: "offline",
@@ -41,6 +60,7 @@ async function startServer() {
     if (!code) return res.status(400).send("No code provided");
 
     try {
+      const redirectUri = getRedirectUri(req);
       // Exchange code for tokens
       const tokenResponse = await fetch("https://oauth2.googleapis.com/token", {
         method: "POST",
@@ -49,7 +69,7 @@ async function startServer() {
           code: code as string,
           client_id: GOOGLE_CLIENT_ID!,
           client_secret: GOOGLE_CLIENT_SECRET!,
-          redirect_uri: getRedirectUri(),
+          redirect_uri: redirectUri,
           grant_type: "authorization_code",
         }),
       });
