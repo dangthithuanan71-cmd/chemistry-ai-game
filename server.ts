@@ -136,7 +136,9 @@ export async function createServerApp() {
       appType: "spa",
     });
     app.use(vite.middlewares);
-  } else {
+  } else if (!process.env.VERCEL) {
+    // Only serve static files manually if NOT on Vercel
+    // On Vercel, static files are handled automatically by the platform
     const distPath = path.join(process.cwd(), "dist");
     app.use(express.static(distPath));
     app.get("*", (req, res) => {
