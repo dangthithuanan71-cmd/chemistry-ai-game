@@ -49,6 +49,7 @@ export default function App() {
   const [chemicals, setChemicals] = useState('');
   const [result, setResult] = useState<ReactionResult | null>(null);
   const [isSimulating, setIsSimulating] = useState(false);
+  const [isLoggingIn, setIsLoggingIn] = useState(false);
   const [history, setHistory] = useState<HistoryItem[]>([]);
   const [view, setView] = useState<'lab' | 'history' | 'teacher'>('lab');
 
@@ -98,11 +99,17 @@ export default function App() {
   }, [user]);
 
   const handleLogin = async () => {
+    setIsLoggingIn(true);
     try {
+      console.log("🚀 Starting Login Process...");
       // 1. Fetch the Google Auth URL from our server
       const response = await fetch('/api/auth/google/url');
-      if (!response.ok) throw new Error('Failed to get auth URL');
+      if (!response.ok) {
+        const errData = await response.json();
+        throw new Error(errData.error || 'Failed to get auth URL');
+      }
       const { url } = await response.json();
+      console.log("🔗 Received Auth URL:", url);
 
       // 2. Open the Google Auth URL in a popup
       const authWindow = window.open(
@@ -116,6 +123,9 @@ export default function App() {
       }
     } catch (error) {
       console.error("Login failed", error);
+      alert(`Login failed: ${error instanceof Error ? error.message : 'Unknown error'}`);
+    } finally {
+      setIsLoggingIn(false);
     }
   };
 
@@ -258,10 +268,15 @@ export default function App() {
           </p>
           <button 
             onClick={handleLogin}
-            className="w-full flex items-center justify-center gap-3 bg-[#141414] text-white py-4 rounded-lg font-medium hover:bg-gray-800 transition-all active:scale-95"
+            disabled={isLoggingIn}
+            className="w-full flex items-center justify-center gap-3 bg-[#141414] text-white py-4 rounded-lg font-medium hover:bg-gray-800 transition-all active:scale-95 disabled:opacity-50 disabled:cursor-not-allowed"
           >
-            <LogIn className="w-5 h-5" />
-            Sign in with Google
+            {isLoggingIn ? (
+              <div className="w-5 h-5 border-2 border-white border-t-transparent rounded-full animate-spin" />
+            ) : (
+              <LogIn className="w-5 h-5" />
+            )}
+            {isLoggingIn ? 'Connecting...' : 'Sign in with Google'}
           </button>
         </div>
       </div>

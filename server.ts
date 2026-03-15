@@ -6,6 +6,12 @@ import fetch from "node-fetch";
 
 dotenv.config();
 
+console.log("🛠️ Environment Check:");
+console.log("- GOOGLE_CLIENT_ID:", process.env.GOOGLE_CLIENT_ID ? "✅ Present" : "❌ Missing");
+console.log("- GOOGLE_CLIENT_SECRET:", process.env.GOOGLE_CLIENT_SECRET ? "✅ Present" : "❌ Missing");
+console.log("- APP_URL:", process.env.APP_URL || "❌ Not Set (Using fallback)");
+console.log("- NEXTAUTH_URL:", process.env.NEXTAUTH_URL || "❌ Not Set");
+
 async function startServer() {
   const app = express();
   const PORT = 3000;
@@ -37,21 +43,32 @@ async function startServer() {
 
   // 1. Get Google Auth URL
   app.get("/api/auth/google/url", (req, res) => {
-    if (!GOOGLE_CLIENT_ID) {
-      return res.status(500).json({ error: "GOOGLE_CLIENT_ID is not configured" });
+    console.log("📥 Request for Google Auth URL");
+    
+    if (!GOOGLE_CLIENT_ID || !GOOGLE_CLIENT_SECRET) {
+      console.error("❌ Missing Google OAuth credentials in environment");
+      return res.status(500).json({ 
+        error: "Google OAuth is not configured. Please set GOOGLE_CLIENT_ID and GOOGLE_CLIENT_SECRET in settings." 
+      });
     }
 
-    const redirectUri = getRedirectUri(req);
-    const params = new URLSearchParams({
-      client_id: GOOGLE_CLIENT_ID,
-      redirect_uri: redirectUri,
-      response_type: "code",
-      scope: "openid email profile",
-      access_type: "offline",
-      prompt: "consent",
-    });
-    const url = `https://accounts.google.com/o/oauth2/v2/auth?${params.toString()}`;
-    res.json({ url });
+    try {
+      const redirectUri = getRedirectUri(req);
+      const params = new URLSearchParams({
+        client_id: GOOGLE_CLIENT_ID,
+        redirect_uri: redirectUri,
+        response_type: "code",
+        scope: "openid email profile",
+        access_type: "offline",
+        prompt: "consent",
+      });
+      const url = `https://accounts.google.com/o/oauth2/v2/auth?${params.toString()}`;
+      console.log("✅ Generated Auth URL:", url);
+      res.json({ url });
+    } catch (err) {
+      console.error("❌ Error generating Auth URL:", err);
+      res.status(500).json({ error: "Failed to generate authentication URL" });
+    }
   });
 
   // 2. Google Auth Callback
