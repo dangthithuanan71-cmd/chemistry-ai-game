@@ -7,8 +7,8 @@ import fetch from "node-fetch";
 dotenv.config();
 
 console.log("🛠️ Environment Check:");
-console.log("- GOOGLE_CLIENT_ID:", process.env.GOOGLE_CLIENT_ID ? "✅ Present" : "❌ Missing");
-console.log("- GOOGLE_CLIENT_SECRET:", process.env.GOOGLE_CLIENT_SECRET ? "✅ Present" : "❌ Missing");
+console.log("- GOOGLE_CLIENT_ID:", process.env.GOOGLE_CLIENT_ID ? `✅ Present (${process.env.GOOGLE_CLIENT_ID.substring(0, 10)}...)` : "❌ Missing");
+console.log("- GOOGLE_CLIENT_SECRET:", process.env.GOOGLE_CLIENT_SECRET ? "✅ Present (Hidden)" : "❌ Missing");
 console.log("- APP_URL:", process.env.APP_URL || "❌ Not Set (Using fallback)");
 console.log("- NEXTAUTH_URL:", process.env.NEXTAUTH_URL || "❌ Not Set");
 
@@ -17,6 +17,11 @@ async function startServer() {
   const PORT = 3000;
 
   app.use(express.json());
+
+  // Health check
+  app.get("/api/health", (req, res) => {
+    res.json({ status: "ok", timestamp: new Date().toISOString() });
+  });
 
   // Google OAuth Configuration
   const GOOGLE_CLIENT_ID = process.env.GOOGLE_CLIENT_ID;
@@ -141,8 +146,11 @@ async function startServer() {
   }
 
   app.listen(PORT, "0.0.0.0", () => {
-    console.log(`Server running on http://localhost:${PORT}`);
+    console.log(`🚀 Server running on http://0.0.0.0:${PORT}`);
   });
 }
 
-startServer();
+startServer().catch((err) => {
+  console.error("💥 Failed to start server:", err);
+  process.exit(1);
+});

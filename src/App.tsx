@@ -104,11 +104,21 @@ export default function App() {
       console.log("🚀 Starting Login Process...");
       // 1. Fetch the Google Auth URL from our server
       const response = await fetch('/api/auth/google/url');
-      if (!response.ok) {
-        const errData = await response.json();
-        throw new Error(errData.error || 'Failed to get auth URL');
+      
+      const text = await response.text();
+      let data;
+      try {
+        data = JSON.parse(text);
+      } catch (e) {
+        console.error("❌ Server returned non-JSON response:", text);
+        throw new Error(`Server error: ${text.substring(0, 100)}${text.length > 100 ? '...' : ''}`);
       }
-      const { url } = await response.json();
+
+      if (!response.ok) {
+        throw new Error(data.error || 'Failed to get auth URL');
+      }
+      
+      const { url } = data;
       console.log("🔗 Received Auth URL:", url);
 
       // 2. Open the Google Auth URL in a popup
