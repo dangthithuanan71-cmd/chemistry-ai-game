@@ -12,21 +12,26 @@ export async function createServerApp() {
 
   // Health check
   app.get("/api/health", (req, res) => {
-    res.json({ status: "ok", timestamp: new Date().toISOString() });
+    res.json({ 
+      status: "ok", 
+      timestamp: new Date().toISOString(),
+      env: process.env.NODE_ENV,
+      isVercel: !!process.env.VERCEL
+    });
   });
 
   // Google OAuth Configuration
   const GOOGLE_CLIENT_ID = process.env.GOOGLE_CLIENT_ID;
   const GOOGLE_CLIENT_SECRET = process.env.GOOGLE_CLIENT_SECRET;
-  
-  if (!GOOGLE_CLIENT_ID || !GOOGLE_CLIENT_SECRET) {
-    console.warn("⚠️ WARNING: GOOGLE_CLIENT_ID or GOOGLE_CLIENT_SECRET is missing from environment variables.");
-  }
 
   const getRedirectUri = (req?: express.Request) => {
-    // Priority: APP_URL (AI Studio) > NEXTAUTH_URL (Vercel) > Request Host (Fallback)
+    // Priority: APP_URL (AI Studio) > VERCEL_URL > NEXTAUTH_URL > Request Host
     let baseUrl = process.env.APP_URL || process.env.NEXTAUTH_URL;
     
+    if (!baseUrl && process.env.VERCEL_URL) {
+      baseUrl = `https://${process.env.VERCEL_URL}`;
+    }
+
     if (!baseUrl && req) {
       const protocol = req.headers["x-forwarded-proto"] || req.protocol;
       baseUrl = `${protocol}://${req.get("host")}`;
@@ -35,7 +40,6 @@ export async function createServerApp() {
     baseUrl = baseUrl || "http://localhost:3000";
     // We'll use /auth/google/callback as the primary, but the server will listen to both
     const uri = `${baseUrl.replace(/\/$/, "")}/auth/google/callback`;
-    console.log(`🔗 OAuth Redirect URI: ${uri}`);
     return uri;
   };
 
@@ -129,13 +133,19 @@ export async function createServerApp() {
   });
 
   // Vite middleware for development
-  if (process.env.NODE_ENV !== "production") {
-    const { createServer: createViteServer } = await import("vite");
-    const vite = await createViteServer({
-      server: { middlewareMode: true },
-      appType: "spa",
-    });
-    app.use(vite.middlewares);
+  if (process.env.NODE_ENV !== "production" && !process.env.VERCEL) {
+    try {
+      // Use a variable to hide the import from some bundlers
+      const vitePkg = "vite";
+      const { createServer: createViteServer } = await import(vitePkg);
+      const vite = await createViteServer({
+        server: { middlewareMode: true },
+        appType: "spa",
+      });
+      app.use(vite.middlewares);
+    } catch (e) {
+      console.warn("Vite could not be initialized, skipping middleware.");
+    }
   } else if (!process.env.VERCEL) {
     // Only serve static files manually if NOT on Vercel
     // On Vercel, static files are handled automatically by the platform
