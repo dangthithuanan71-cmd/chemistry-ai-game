@@ -2,14 +2,6 @@ import express from "express";
 import path from "path";
 import dotenv from "dotenv";
 
-// Use native fetch if available (Node 18+), otherwise fallback to node-fetch
-// This avoids some ESM issues on serverless platforms
-const getFetch = async () => {
-  if (typeof fetch !== "undefined") return fetch;
-  const { default: nodeFetch } = await import("node-fetch");
-  return nodeFetch as unknown as typeof fetch;
-};
-
 dotenv.config();
 
 export async function createServerApp() {
@@ -92,9 +84,8 @@ export async function createServerApp() {
 
     try {
       const redirectUri = getRedirectUri(req);
-      const fetchFn = await getFetch();
       // Exchange code for tokens
-      const tokenResponse = await fetchFn("https://oauth2.googleapis.com/token", {
+      const tokenResponse = await fetch("https://oauth2.googleapis.com/token", {
         method: "POST",
         headers: { "Content-Type": "application/x-www-form-urlencoded" },
         body: new URLSearchParams({
@@ -109,7 +100,7 @@ export async function createServerApp() {
       const tokens = await tokenResponse.json() as any;
       
       // Get user info
-      const userResponse = await fetchFn("https://www.googleapis.com/oauth2/v3/userinfo", {
+      const userResponse = await fetch("https://www.googleapis.com/oauth2/v3/userinfo", {
         headers: { Authorization: `Bearer ${tokens.access_token}` },
       });
       const userData = await userResponse.json() as any;
@@ -182,7 +173,11 @@ async function startServer() {
   });
 }
 
-startServer().catch((err) => {
-  console.error("💥 Failed to start server:", err);
-  process.exit(1);
-});
+// Only start the server if NOT on Vercel
+// Vercel uses the exported app from api/index.ts
+if (!process.env.VERCEL) {
+  startServer().catch((err) => {
+    console.error("💥 Failed to start server:", err);
+    process.exit(1);
+  });
+}
