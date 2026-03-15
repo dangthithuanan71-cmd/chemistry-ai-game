@@ -1,21 +1,13 @@
 import express from "express";
-import { createServer as createViteServer } from "vite";
 import path from "path";
 import dotenv from "dotenv";
 import fetch from "node-fetch";
 
 dotenv.config();
 
-console.log("🛠️ Environment Check:");
-console.log("- GOOGLE_CLIENT_ID:", process.env.GOOGLE_CLIENT_ID ? `✅ Present (${process.env.GOOGLE_CLIENT_ID.substring(0, 10)}...)` : "❌ Missing");
-console.log("- GOOGLE_CLIENT_SECRET:", process.env.GOOGLE_CLIENT_SECRET ? "✅ Present (Hidden)" : "❌ Missing");
-console.log("- APP_URL:", process.env.APP_URL || "❌ Not Set (Using fallback)");
-console.log("- NEXTAUTH_URL:", process.env.NEXTAUTH_URL || "❌ Not Set");
-
-async function startServer() {
+export async function createServerApp() {
   const app = express();
-  const PORT = 3000;
-
+  
   app.use(express.json());
 
   // Health check
@@ -132,6 +124,7 @@ async function startServer() {
 
   // Vite middleware for development
   if (process.env.NODE_ENV !== "production") {
+    const { createServer: createViteServer } = await import("vite");
     const vite = await createViteServer({
       server: { middlewareMode: true },
       appType: "spa",
@@ -144,6 +137,19 @@ async function startServer() {
       res.sendFile(path.join(distPath, "index.html"));
     });
   }
+
+  return app;
+}
+
+async function startServer() {
+  const PORT = 3000;
+  const app = await createServerApp();
+
+  console.log("🛠️ Environment Check:");
+  console.log("- GOOGLE_CLIENT_ID:", process.env.GOOGLE_CLIENT_ID ? `✅ Present (${process.env.GOOGLE_CLIENT_ID.substring(0, 10)}...)` : "❌ Missing");
+  console.log("- GOOGLE_CLIENT_SECRET:", process.env.GOOGLE_CLIENT_SECRET ? "✅ Present (Hidden)" : "❌ Missing");
+  console.log("- APP_URL:", process.env.APP_URL || "❌ Not Set (Using fallback)");
+  console.log("- NEXTAUTH_URL:", process.env.NEXTAUTH_URL || "❌ Not Set");
 
   app.listen(PORT, "0.0.0.0", () => {
     console.log(`🚀 Server running on http://0.0.0.0:${PORT}`);
