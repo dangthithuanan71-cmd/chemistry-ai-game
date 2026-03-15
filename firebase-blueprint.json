@@ -1,0 +1,39 @@
+{
+  "entities": {
+    "User": {
+      "title": "User",
+      "description": "User profile with role information",
+      "type": "object",
+      "properties": {
+        "uid": { "type": "string", "description": "Firebase Auth UID" },
+        "email": { "type": "string", "description": "User email" },
+        "role": { "type": "string", "enum": ["student", "teacher"], "description": "User role" },
+        "displayName": { "type": "string", "description": "User display name" }
+      },
+      "required": ["uid", "email", "role"]
+    },
+    "ReactionHistory": {
+      "title": "Reaction History",
+      "description": "History of chemistry reactions performed by students",
+      "type": "object",
+      "properties": {
+        "studentUid": { "type": "string", "description": "UID of the student" },
+        "studentEmail": { "type": "string", "description": "Email of the student" },
+        "chemicals": { "type": "string", "description": "Input chemicals string" },
+        "result": { "type": "object", "description": "JSON result from Gemini" },
+        "timestamp": { "type": "string", "format": "date-time", "description": "When the reaction was simulated" }
+      },
+      "required": ["studentUid", "chemicals", "result", "timestamp"]
+    }
+  },
+  "firestore": {
+    "/users/{uid}": {
+      "schema": "User",
+      "description": "User profiles"
+    },
+    "/history/{historyId}": {
+      "schema": "ReactionHistory",
+      "description": "Global reaction history"
+    }
+  }
+}
