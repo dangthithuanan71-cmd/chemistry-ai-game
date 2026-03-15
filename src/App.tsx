@@ -99,13 +99,78 @@ export default function App() {
 
   const handleLogin = async () => {
     try {
-      await signInWithPopup(auth, new GoogleAuthProvider());
+      // 1. Fetch the Google Auth URL from our server
+      const response = await fetch('/api/auth/google/url');
+      if (!response.ok) throw new Error('Failed to get auth URL');
+      const { url } = await response.json();
+
+      // 2. Open the Google Auth URL in a popup
+      const authWindow = window.open(
+        url,
+        'google_oauth_popup',
+        'width=600,height=700'
+      );
+
+      if (!authWindow) {
+        alert('Please allow popups for this site to sign in.');
+      }
     } catch (error) {
       console.error("Login failed", error);
     }
   };
 
-  const handleLogout = () => signOut(auth);
+  // Listen for success message from popup
+  useEffect(() => {
+    const handleMessage = async (event: MessageEvent) => {
+      // Validate origin
+      const origin = event.origin;
+      if (!origin.endsWith('.run.app') && !origin.includes('localhost') && !origin.includes('vercel.app')) {
+        return;
+      }
+
+      if (event.data?.type === 'OAUTH_AUTH_SUCCESS') {
+        const googleUser = event.data.user;
+        
+        // Since we are using Firebase for the DB, we should ideally link this Google user to Firebase.
+        // For now, we'll simulate the user state and profile.
+        // In a real production app, you'd use Firebase Admin to create a custom token.
+        
+        const simulatedUser = {
+          uid: googleUser.sub,
+          email: googleUser.email,
+          displayName: googleUser.name,
+          photoURL: googleUser.picture
+        } as any;
+
+        setUser(simulatedUser);
+        
+        // Handle profile
+        const userDoc = await getDoc(doc(db, 'users', simulatedUser.uid));
+        if (userDoc.exists()) {
+          setProfile(userDoc.data() as UserProfile);
+        } else {
+          const isAdminEmail = simulatedUser.email === 'phamngocsonsp@gmail.com';
+          const newProfile: UserProfile = {
+            uid: simulatedUser.uid,
+            email: simulatedUser.email || '',
+            role: isAdminEmail ? 'teacher' : 'student',
+            displayName: simulatedUser.displayName || ''
+          };
+          await setDoc(doc(db, 'users', simulatedUser.uid), newProfile);
+          setProfile(newProfile);
+        }
+        setLoading(false);
+      }
+    };
+    window.addEventListener('message', handleMessage);
+    return () => window.removeEventListener('message', handleMessage);
+  }, []);
+
+  const handleLogout = () => {
+    setUser(null);
+    setProfile(null);
+    signOut(auth);
+  };
 
   const simulateReaction = async () => {
     if (!chemicals.trim()) return;
